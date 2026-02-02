@@ -8,11 +8,13 @@ import plotly.express as px
 from dash import dcc, html
 from dash.dependencies import Input, Output
 
-WROC_TS_PATH = r"D:\WYNIKI_WROC\wroclaw_caly.csv"
-WROC_GEO_PATH = r"D:\WYNIKI_WROC\wroclaw_geo.csv"
-WROC_PRED_PATH = r"D:\WYNIKI_WROC\predictions_ml.csv"
-WROC_A95_PATH = r"D:\WYNIKI_WROC\anomaly_95.csv"
-WROC_A99_PATH = r"D:\WYNIKI_WROC\anomaly_99.csv"
+DATA_DIR = os.getenv("DATA_DIR", r"D:\WYNIKI_WROC")
+
+WROC_TS_PATH   = os.path.join(DATA_DIR, "wroclaw_caly.csv")
+WROC_GEO_PATH  = os.path.join(DATA_DIR, "wroclaw_geo.csv")
+WROC_PRED_PATH = os.path.join(DATA_DIR, "predictions_ml.csv")
+WROC_A95_PATH  = os.path.join(DATA_DIR, "anomaly_95.csv")
+WROC_A99_PATH  = os.path.join(DATA_DIR, "anomaly_99.csv")
 
 px.set_mapbox_access_token(
     "pk.eyJ1IjoibnBpZWkiLCJhIjoiY21jN2tvYXE1MTRqeTJrc2NtaTlvNXQyZSJ9.abg-EkfnNKp7bgwEvgRp0w"
