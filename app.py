@@ -1,24 +1,18 @@
-import os
 from functools import lru_cache
-
-import dash
-import dash_bootstrap_components as dbc
 import pandas as pd
-import plotly.express as px
+import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
+import plotly.express as px
+import dash_bootstrap_components as dbc
 
-DATA_DIR = os.getenv("DATA_DIR", r"D:\WYNIKI_WROC")
+WROC_TS_PATH   = r"wroclaw_caly_filtered.csv"        
+WROC_GEO_PATH  = r"wroclaw_geo_filtered.csv"        
+WROC_PRED_PATH = r"predictions_ml_filtered.csv"      
+WROC_A95_PATH  = r"anomaly_95_filtered.csv" 
+WROC_A99_PATH  = r"anomaly_99_filtered.csv"     
 
-WROC_TS_PATH   = os.path.join(DATA_DIR, "wroclaw_caly.csv")
-WROC_GEO_PATH  = os.path.join(DATA_DIR, "wroclaw_geo.csv")
-WROC_PRED_PATH = os.path.join(DATA_DIR, "predictions_ml.csv")
-WROC_A95_PATH  = os.path.join(DATA_DIR, "anomaly_95.csv")
-WROC_A99_PATH  = os.path.join(DATA_DIR, "anomaly_99.csv")
-
-px.set_mapbox_access_token(
-    "pk.eyJ1IjoibnBpZWkiLCJhIjoiY21jN2tvYXE1MTRqeTJrc2NtaTlvNXQyZSJ9.abg-EkfnNKp7bgwEvgRp0w"
-)
+px.set_mapbox_access_token("pk.eyJ1IjoibnBpZWsiLCJhIjoiY21jN2tvYXE1MTRqeTJrc2NtaTlvNXQyZSJ9.abg-EkfnNKp7bgwEvgRp0w")
 
 geo_data_wroc = pd.read_csv(
     WROC_GEO_PATH,
@@ -32,25 +26,10 @@ geo_data_wroc = pd.read_csv(
 )
 geo_data_wroc["pid"] = geo_data_wroc["pid"].str.strip()
 
-ANOM_USECOLS = [
-    "pid",
-    "lower_bound",
-    "upper_bound",
-    "actual_value",
-    "predicted_value",
-    "is_anomaly",
-]
-ANOM_DTYPES = {
-    "pid": "string",
-    "lower_bound": "float32",
-    "upper_bound": "float32",
-    "actual_value": "float32",
-    "predicted_value": "float32",
-    "is_anomaly": "string",
-}
-
-
 def read_insar_pid(pid: str) -> pd.DataFrame:
+    """
+    InSAR time series for a single pid from wide CSV: Date + pid columns.
+    """
     pid = str(pid).strip()
     df = pd.read_csv(
         WROC_TS_PATH,
@@ -65,6 +44,9 @@ def read_insar_pid(pid: str) -> pd.DataFrame:
 
 
 def read_pred_pid(pid: str) -> pd.DataFrame:
+    """
+    Prediction series for a single pid from wide CSV: Date + pid columns.
+    """
     pid = str(pid).strip()
     df = pd.read_csv(
         WROC_PRED_PATH,
@@ -78,20 +60,34 @@ def read_pred_pid(pid: str) -> pd.DataFrame:
     return df
 
 
+ANOM_USECOLS = ["pid", "lower_bound", "upper_bound", "actual_value", "predicted_value", "is_anomaly"]
+
+ANOM_DTYPES = {
+    "pid": "string",
+    "lower_bound": "float32",
+    "upper_bound": "float32",
+    "actual_value": "float32",
+    "predicted_value": "float32",
+    "is_anomaly": "string",   
+}
+
 def _normalize_is_anomaly(s: pd.Series) -> pd.Series:
+    """
+    Convert many encodings to int 0/1:
+    True/False, 'True'/'False', 1/0, yes/no etc.
+    """
     s = s.astype(str).str.strip().str.lower()
     return s.isin(["true", "1", "t", "yes", "y"]).astype("int8")
 
 
 def read_anom_pid_chunked(path: str, pid: str, chunksize: int = 200_000) -> pd.DataFrame:
+    """
+    Read anomaly rows for one pid from long CSV by chunking.
+    Keeps RAM low.
+    """
     pid = str(pid).strip()
     out = []
-    for ch in pd.read_csv(
-        path,
-        chunksize=chunksize,
-        usecols=ANOM_USECOLS,
-        dtype=ANOM_DTYPES,
-    ):
+    for ch in pd.read_csv(path, chunksize=chunksize, usecols=ANOM_USECOLS, dtype=ANOM_DTYPES):
         ch["pid"] = ch["pid"].str.strip()
         part = ch[ch["pid"] == pid]
         if not part.empty:
@@ -108,26 +104,21 @@ def read_anom_pid_chunked(path: str, pid: str, chunksize: int = 200_000) -> pd.D
     df = df.reset_index(drop=True)
     return df
 
-
 @lru_cache(maxsize=512)
 def cached_insar(pid: str) -> pd.DataFrame:
     return read_insar_pid(pid)
-
 
 @lru_cache(maxsize=512)
 def cached_pred(pid: str) -> pd.DataFrame:
     return read_pred_pid(pid)
 
-
 @lru_cache(maxsize=512)
 def cached_a95(pid: str) -> pd.DataFrame:
     return read_anom_pid_chunked(WROC_A95_PATH, pid)
 
-
 @lru_cache(maxsize=512)
 def cached_a99(pid: str) -> pd.DataFrame:
     return read_anom_pid_chunked(WROC_A99_PATH, pid)
-
 
 app = dash.Dash(
     __name__,
@@ -136,14 +127,17 @@ app = dash.Dash(
 )
 server = app.server
 
+
 app.layout = html.Div(
     [
         html.H3("UPWR InSAR-based time series monitoring, prediction and anomaly detection platform"),
+
         dcc.Graph(
             id="map",
             style={"height": "80vh", "width": "95vw"},
             config={"scrollZoom": True, "doubleClick": False},
         ),
+
         html.Div(
             id="displacement-container",
             children=[
@@ -151,6 +145,7 @@ app.layout = html.Div(
             ],
             style={"display": "none"},
         ),
+
         html.Div(
             [
                 html.Hr(style={"margin": "5px 0"}),
@@ -185,7 +180,6 @@ app.layout = html.Div(
     ]
 )
 
-
 @app.callback(
     Output("map", "figure"),
     Input("map", "id"),
@@ -193,6 +187,7 @@ app.layout = html.Div(
 def update_map(_):
     map_style = "satellite"
     data = geo_data_wroc.dropna(subset=["latitude", "longitude"]).copy()
+
     center_coords = {
         "lat": float(data["latitude"].mean()),
         "lon": float(data["longitude"].mean()),
@@ -204,10 +199,11 @@ def update_map(_):
         lon="longitude",
         hover_name="pid",
         hover_data={"latitude": True, "longitude": True, "height": True},
-        zoom=10,
+        zoom=13,
         opacity=0.9,
     )
     fig.update_traces(marker=dict(size=7, color="blue"))
+
     fig.update_layout(
         mapbox_style=map_style,
         autosize=True,
@@ -226,11 +222,13 @@ def display_displacement(clickData):
         return {}, {"display": "none"}
 
     point_id = clickData["points"][0]["hovertext"].strip()
+
     insar = cached_insar(point_id)
     if insar is None or insar.empty:
         return {}, {"display": "none"}
 
     pred = cached_pred(point_id)
+
     a95 = cached_a95(point_id)
     a99 = cached_a99(point_id)
 
@@ -290,6 +288,7 @@ def display_displacement(clickData):
             fillcolor="rgba(255, 252, 127, 0.2)",
             name="Lower Bound p=95",
         )
+
         an95 = a95[a95["is_anomaly"] == 1]
         if not an95.empty:
             fig.add_scatter(
@@ -317,6 +316,7 @@ def display_displacement(clickData):
             fillcolor="rgba(254, 121, 104, 0.1)",
             name="Lower Bound p=99",
         )
+
         an99 = a99[a99["is_anomaly"] == 1]
         if not an99.empty:
             fig.add_scatter(
@@ -333,8 +333,10 @@ def display_displacement(clickData):
         legend_title="Legend",
         legend=dict(yanchor="top", y=1, xanchor="left", x=1.05),
     )
+
     return fig, {"display": "block"}
 
 
 if __name__ == "__main__":
-    app.run_server(port=8060, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
