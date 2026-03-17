@@ -115,7 +115,7 @@ server = app.server
 app.layout = html.Div([
 
     html.Div([
-        html.H3("Select Map and Data Visualization Options", 
+        html.H3("UPWR InSAR-based time series monitoring, prediction and anomaly detection platform", 
                 style={'display': 'inline-block', 'margin-right': '20px'}),
         html.Div([
             html.Button(
@@ -281,7 +281,7 @@ app.layout = html.Div([
             dcc.Dropdown(
                 id='area-dropdown',
                 options=[
-                    {'label': 'Zbiornik Racibórz Dolny', 'value': 'nysa'},
+                    {'label': 'Wrocław', 'value': 'nysa'},
                 ],
                 value='nysa',
                 clearable=False,
