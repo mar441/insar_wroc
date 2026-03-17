@@ -1,5 +1,15 @@
 dash==4.0.0
 dash-bootstrap-components==2.0.0
+dash-core-components
+dash-html-components
+dash-renderer
+dash-table
+Flask
 pandas
 plotly
+numpy
+matplotlib
+scipy
+geopy
 psutil
+dash_auth
