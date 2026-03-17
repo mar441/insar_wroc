@@ -391,16 +391,38 @@ app.layout = html.Div([
             style_table={'width': '50%', 'margin': 'auto'}
         )
     ], id='point-attributes-container', style={'display': 'none'}),
-    html.Div([
-        html.Hr(style={'margin': '5px 0'}),
-        html.Div([
-            html.P(
-                "This work was supported by the Wrocław University of Environmental "
-                "and Life Sciences (Poland) as part of the research project No. N060/0004/23."
-            )
-        ], style={'textAlign': 'center', 'fontSize': '14px'})
-    ], style={'padding': '10px'}),
-])
+    html.Div(
+            [
+                html.Hr(style={"margin": "5px 0"}),
+                html.P(
+                    [
+                        "This work was supported by the Wrocław University of Environmental "
+                        "and Life Sciences (Poland) as part of the research project No. ",
+                        html.A(
+                            "N060/0004/23",
+                            href="https://bazawiedzy.upwr.edu.pl/info/projectinternal/UPWR82df6d5513b84da5aab50c936b73f903/",
+                            target="_blank",
+                            style={
+                                "color": "#0066cc",
+                                "textDecoration": "underline",
+                                "fontWeight": "500",
+                            },
+                        ),
+                        ". For further information or inquiries regarding this project, please contact "
+                        "Kamila Pawłuszek-Filipiak (email: ",
+                        html.A(
+                            "kamila.pawluszek-filipiak@upwr.edu.pl",
+                            href="mailto:kamila.pawluszek-filipiak@upwr.edu.pl",
+                            style={"color": "#0066cc"},
+                        ),
+                        ").",
+                    ],
+                    style={"textAlign": "center", "fontSize": "14px"},
+                ),
+            ],
+            style={"padding": "10px"},
+        ),
+    ])
 
 
 @app.callback(
