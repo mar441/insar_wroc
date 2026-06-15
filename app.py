@@ -45,10 +45,10 @@ prediction_data_nysa_ml['label'] = 'ML Nysa Prediction Set'
 prediction_data_nysa_ml['step'] = prediction_data_nysa_ml.groupby('pid').cumcount()
 
 anomaly_data_nysa_95_ml = load_anomaly_data('anomaly_95_filtered.csv', 'Anomaly Set 1 ML (95%)')
-anomaly_data_nysa_95_ml = anomaly_data_nysa_95_ml.groupby('pid').head(62)
+anomaly_data_nysa_95_ml = anomaly_data_nysa_95_ml.groupby('pid').head(61)
 
 anomaly_data_nysa_99_ml = load_anomaly_data('anomaly_99_filtered.csv', 'Anomaly Set 1 ML (99%)')
-anomaly_data_nysa_99_ml = anomaly_data_nysa_99_ml.groupby('pid').head(62)
+anomaly_data_nysa_99_ml = anomaly_data_nysa_99_ml.groupby('pid').head(61)
 
 all_data_nysa_ml.sort_values(by=['pid', 'timestamp'], inplace=True)
 all_data_nysa_ml['displacement_diff'] = all_data_nysa_ml.groupby('pid')['displacement'].diff().round(1)
@@ -98,6 +98,8 @@ actual_prefix_data = {
 }
 
 MAX_ACTUAL_NYSA = actual_nysa_ml_prefix.columns.max()
+
+TEST_START_DATE = pd.Timestamp('2021-01-01')
 
 orbit_geometry_info = {
     'Ascending 175': {
@@ -327,11 +329,11 @@ app.layout = html.Div([
         html.Div(id='selected-range-dates', style={'fontSize': '14px', 'margin': '10px 0'}),
         dcc.RangeSlider(
             id='dynamic-prediction-range-slider',
-            min=1,
+            min=0,
             max=60,
             step=1,
             marks={},
-            value=[1, 5],
+            value=[0, 5],
             tooltip={"placement": "bottom", "always_visible": True},
             allowCross=False
         )
@@ -485,32 +487,23 @@ def toggle_help_modal(n_clicks, is_open):
 def display_selected_dates(range_value, selected_area):
     start_val, end_val = range_value
 
-    data_for_area = {
-        'nysa': all_data_nysa_ml,
-    }.get(selected_area, all_data_nysa_ml)
-
-    timestamps_df = (
-        data_for_area
-        .drop_duplicates(subset='obs_step')[['obs_step', 'timestamp']]
-        .sort_values('obs_step')
+    test_dates = (
+        all_data_nysa_ml[all_data_nysa_ml['timestamp'] >= TEST_START_DATE]
+        .drop_duplicates(subset='timestamp')
+        .sort_values('timestamp')
+        .reset_index(drop=True)
     )
-    
-    step_to_date = dict(zip(timestamps_df['obs_step'], timestamps_df['timestamp']))
 
-    date_start = step_to_date.get(start_val)
-    date_end = step_to_date.get(end_val)
+    date_list = test_dates['timestamp'].tolist()
 
-    if date_start:
-        date_start_str = date_start.strftime('%Y-%m-%d')
-    else:
-        date_start_str = "N/A"
+    start_val = min(start_val, len(date_list)-1)
+    end_val = min(end_val, len(date_list)-1)
 
-    if date_end:
-        date_end_str = date_end.strftime('%Y-%m-%d')
-    else:
-        date_end_str = "N/A"
+    date_start = date_list[start_val]
+    date_end = date_list[end_val]
 
-    return f"Selected date range: {date_start_str} to {date_end_str}"
+    return f"Selected date range: {date_start.strftime('%Y-%m-%d')} to {date_end.strftime('%Y-%m-%d')}"
+
 
 @app.callback(
     Output('prediction-slider-container', 'style'),
@@ -889,7 +882,7 @@ def display_displacement(clickData, start_date, end_date, y_min, y_max, selected
             full_data = all_data_nysa_ml[all_data_nysa_ml['pid'] == point_id].copy()
             anomaly_data_95 = anomaly_data_nysa_95_ml
             anomaly_data_99 = anomaly_data_nysa_99_ml
-            last_n_data = full_data.tail(60)
+            last_n_data = full_data[full_data['timestamp'] >= TEST_START_DATE].copy()
 
     last_n_data.set_index('timestamp', inplace=True)
     filtered_data = full_data[(full_data['timestamp'] >= start_date) & (full_data['timestamp'] <= end_date)].copy()
