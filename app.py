@@ -101,7 +101,8 @@ MAX_ACTUAL_NYSA = actual_nysa_ml_prefix.columns.max()
 TEST_START_DATE = pd.Timestamp('2021-01-01')
 
 # ---------------------------------------------------------------
-# Pełna lista dat testowych (od 01.01.2021 do 27.12.2021) — 61 kroków
+# Daty testowe (01.01.2021 - 27.12.2021) — 61 kroków
+# używane dla: Prediction Velocity
 # ---------------------------------------------------------------
 TEST_DATES = pd.to_datetime([
     '2021-01-01', '2021-01-07', '2021-01-13', '2021-01-19', '2021-01-25',
@@ -119,6 +120,12 @@ TEST_DATES = pd.to_datetime([
     '2021-12-27'
 ])
 MAX_TEST_STEPS = len(TEST_DATES)  # 61
+
+# ---------------------------------------------------------------
+# Wszystkie daty (cały okres 2015-2021) — dla Cumulative Displacement
+# ---------------------------------------------------------------
+ALL_DATES = pd.to_datetime(sorted(all_data_nysa_ml['timestamp'].unique()))
+MAX_ALL_STEPS = len(ALL_DATES)
 
 orbit_geometry_info = {
     'Ascending 175': {
@@ -353,7 +360,6 @@ app.layout = html.Div([
             step=1,
             marks={},
             value=[1, 5],
-            tooltip={"placement": "bottom", "always_visible": True},
             allowCross=False
         )
     ], id='prediction-slider-container', style={'display': 'none', 'padding': '10px'}),
@@ -373,9 +379,7 @@ app.layout = html.Div([
                     start_date=all_data_nysa_ml['timestamp'].min(),
                     end_date=all_data_nysa_ml['timestamp'].max(),
                     display_format='YYYY-MM-DD',
-                    style={
-                        'fontSize': '16px'
-                    }
+                    style={'fontSize': '16px'}
                 )
             ], style={'display': 'inline-block', 'padding': '15px', 'verticalAlign': 'top'}),
             html.Div([
@@ -412,37 +416,37 @@ app.layout = html.Div([
         )
     ], id='point-attributes-container', style={'display': 'none'}),
     html.Div(
-            [
-                html.Hr(style={"margin": "5px 0"}),
-                html.P(
-                    [
-                        "This work was supported by the Wrocław University of Environmental "
-                        "and Life Sciences (Poland) as part of the research project No. ",
-                        html.A(
-                            "N060/0004/23",
-                            href="https://bazawiedzy.upwr.edu.pl/info/projectinternal/UPWR82df6d5513b84da5aab50c936b73f903/",
-                            target="_blank",
-                            style={
-                                "color": "#0066cc",
-                                "textDecoration": "underline",
-                                "fontWeight": "500",
-                            },
-                        ),
-                        ". For further information or inquiries regarding this project, please contact "
-                        "Kamila Pawłuszek-Filipiak (email: ",
-                        html.A(
-                            "kamila.pawluszek-filipiak@upwr.edu.pl",
-                            href="mailto:kamila.pawluszek-filipiak@upwr.edu.pl",
-                            style={"color": "#0066cc"},
-                        ),
-                        ").",
-                    ],
-                    style={"textAlign": "center", "fontSize": "14px"},
-                ),
-            ],
-            style={"padding": "10px"},
-        ),
-    ])
+        [
+            html.Hr(style={"margin": "5px 0"}),
+            html.P(
+                [
+                    "This work was supported by the Wrocław University of Environmental "
+                    "and Life Sciences (Poland) as part of the research project No. ",
+                    html.A(
+                        "N060/0004/23",
+                        href="https://bazawiedzy.upwr.edu.pl/info/projectinternal/UPWR82df6d5513b84da5aab50c936b73f903/",
+                        target="_blank",
+                        style={
+                            "color": "#0066cc",
+                            "textDecoration": "underline",
+                            "fontWeight": "500",
+                        },
+                    ),
+                    ". For further information or inquiries regarding this project, please contact "
+                    "Kamila Pawłuszek-Filipiak (email: ",
+                    html.A(
+                        "kamila.pawluszek-filipiak@upwr.edu.pl",
+                        href="mailto:kamila.pawluszek-filipiak@upwr.edu.pl",
+                        style={"color": "#0066cc"},
+                    ),
+                    ").",
+                ],
+                style={"textAlign": "center", "fontSize": "14px"},
+            ),
+        ],
+        style={"padding": "10px"},
+    ),
+])
 
 
 @app.callback(
@@ -462,10 +466,10 @@ def toggle_color_range_container(selected_mode):
 )
 def toggle_custom_range(range_choice):
     if range_choice == 'custom':
-        return {'display': 'block','marginTop':'10px'}
+        return {'display': 'block', 'marginTop': '10px'}
     else:
-        return {'display':'none'}
-    
+        return {'display': 'none'}
+
 @app.callback(
     Output('color-scale-dropdown-container', 'style'),
     Input('color-mode-dropdown', 'value')
@@ -498,17 +502,28 @@ def toggle_help_modal(n_clicks, is_open):
     return is_open
 
 # ---------------------------------------------------------------
-# POPRAWIONY CALLBACK: wyświetlanie dat z listy TEST_DATES
+# Wyświetlanie dat — zależnie od trybu (testowe lub wszystkie)
 # ---------------------------------------------------------------
 @app.callback(
     Output('selected-range-dates', 'children'),
     Input('dynamic-prediction-range-slider', 'value'),
+    Input('color-mode-dropdown', 'value'),
     State('area-dropdown', 'value')
 )
-def display_selected_dates(range_value, selected_area):
+def display_selected_dates(range_value, color_mode, selected_area):
     start_val, end_val = range_value
-    date_start = TEST_DATES[start_val - 1]
-    date_end = TEST_DATES[end_val - 1]
+
+    if color_mode == 'actual_displacement_velocity':
+        date_list = ALL_DATES
+    else:
+        date_list = TEST_DATES
+
+    start_val = min(start_val, len(date_list))
+    end_val = min(end_val, len(date_list))
+
+    date_start = date_list[start_val - 1]
+    date_end = date_list[end_val - 1]
+
     return (
         f"Selected date range: "
         f"{date_start.strftime('%Y-%m-%d')} "
@@ -547,7 +562,8 @@ def update_orbit_filter(selected_area):
         return [{'label': 'Ascending 175', 'value': 'Ascending 175'}], 'Ascending 175', True
 
 # ---------------------------------------------------------------
-# POPRAWIONY CALLBACK: slider oparty na TEST_DATES (61 kroków)
+# Slider: dla Cumulative Displacement — wszystkie daty (cały okres)
+#         dla Prediction Velocity — tylko daty testowe (61 kroków)
 # ---------------------------------------------------------------
 @app.callback(
     [Output('dynamic-prediction-range-slider', 'max'),
@@ -558,12 +574,18 @@ def update_orbit_filter(selected_area):
      Input('prediction-method-dropdown', 'value')]
 )
 def update_slider_max(selected_area, color_mode, prediction_method):
-    max_val = MAX_TEST_STEPS  # zawsze 61 kroków testowych
 
-    # Etykiety co 5 kroków + pierwszy i ostatni
-    N = 5
+    if color_mode == 'actual_displacement_velocity':
+        date_list = ALL_DATES
+        max_val = MAX_ALL_STEPS
+        N = 30  # etykiety rzadziej — dużo dat
+    else:
+        date_list = TEST_DATES
+        max_val = MAX_TEST_STEPS  # 61
+        N = 5
+
     marks = {}
-    for i, date in enumerate(TEST_DATES):
+    for i, date in enumerate(date_list):
         step_val = i + 1
         if step_val == 1 or step_val == max_val or step_val % N == 0:
             marks[step_val] = date.strftime('%Y-%m-%d')
@@ -637,14 +659,13 @@ def update_map(map_style, color_mode, orbit_filter, selected_area, pred_range, p
 
         fig = px.scatter_mapbox(
             merged_data,
-            lat='latitude',
-            lon='longitude',
+            lat='latitude', lon='longitude',
             hover_name='pid',
             hover_data={'latitude': True, 'longitude': True, 'height': True},
             color='prediction_velocity',
             color_continuous_scale=color_scale_selected,
             range_color=(vmin, vmax),
-            labels={'latitude': 'Latitude','longitude': 'Longitude','height': 'Height'},
+            labels={'latitude': 'Latitude', 'longitude': 'Longitude', 'height': 'Height'},
             zoom=zoom_level,
             opacity=point_opacity)
         fig.update_layout(legend_title_text='Prediction Velocity Average')
@@ -678,14 +699,13 @@ def update_map(map_style, color_mode, orbit_filter, selected_area, pred_range, p
 
         fig = px.scatter_mapbox(
             merged_data,
-            lat='latitude',
-            lon='longitude',
+            lat='latitude', lon='longitude',
             hover_name='pid',
             hover_data={'latitude': True, 'longitude': True, 'height': True},
             color='actual_displacement_velocity',
             color_continuous_scale=color_scale_selected,
             range_color=(vmin, vmax),
-            labels={'latitude': 'Latitude','longitude': 'Longitude','height': 'Height'},
+            labels={'latitude': 'Latitude', 'longitude': 'Longitude', 'height': 'Height'},
             zoom=zoom_level,
             opacity=point_opacity)
         fig.update_layout(legend_title_text='Actual Displacement Velocity Average')
@@ -704,7 +724,7 @@ def update_map(map_style, color_mode, orbit_filter, selected_area, pred_range, p
             lat='latitude', lon='longitude',
             hover_name='pid',
             hover_data={'latitude': True, 'longitude': True, 'height': True},
-            labels={'latitude': 'Latitude','longitude': 'Longitude','height': 'Height'},
+            labels={'latitude': 'Latitude', 'longitude': 'Longitude', 'height': 'Height'},
             color=merged_data['anomaly_3plus'].map({True: 'Anomaly', False: 'No Anomaly'}),
             color_discrete_map={'Anomaly': 'red', 'No Anomaly': 'green'},
             zoom=zoom_level,
@@ -714,11 +734,10 @@ def update_map(map_style, color_mode, orbit_filter, selected_area, pred_range, p
     elif color_mode == 'orbit':
         fig = px.scatter_mapbox(
             filtered_data,
-            lat='latitude',
-            lon='longitude',
+            lat='latitude', lon='longitude',
             hover_name='pid',
             hover_data={'latitude': True, 'longitude': True, 'height': True},
-            labels={'latitude': 'Latitude','longitude': 'Longitude','height': 'Height'},
+            labels={'latitude': 'Latitude', 'longitude': 'Longitude', 'height': 'Height'},
             color='file',
             zoom=zoom_level,
             opacity=point_opacity)
@@ -738,14 +757,13 @@ def update_map(map_style, color_mode, orbit_filter, selected_area, pred_range, p
 
         fig = px.scatter_mapbox(
             filtered_data,
-            lat='latitude',
-            lon='longitude',
+            lat='latitude', lon='longitude',
             hover_name='pid',
             hover_data={'latitude': True, 'longitude': True, 'height': True},
             color='mean_velocity',
             color_continuous_scale=color_scale_selected,
             range_color=(vmin, vmax),
-            labels={'latitude': 'Latitude','longitude': 'Longitude','height': 'Height'},
+            labels={'latitude': 'Latitude', 'longitude': 'Longitude', 'height': 'Height'},
             zoom=zoom_level,
             opacity=point_opacity)
         fig.update_layout(legend_title_text='Mean Velocity')
@@ -822,7 +840,6 @@ def display_distance(selected_points, distance_calc_enabled):
     if point_1 is not None and point_2 is not None:
         coords_1 = (point_1['lat'], point_1['lon'])
         coords_2 = (point_2['lat'], point_2['lon'])
-
         distance_km = geodesic(coords_1, coords_2).kilometers
         
         return html.Div([
@@ -847,7 +864,6 @@ def update_date_picker(selected_area):
     if selected_area == 'nysa':
         start_date = all_data_nysa_ml['timestamp'].min()
         end_date = all_data_nysa_ml['timestamp'].max()
-
     return start_date, end_date, start_date, end_date
 
 @app.callback(
