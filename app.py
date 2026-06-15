@@ -164,7 +164,7 @@ app.layout = html.Div([
                     html.Label("Points Transparency"),
                     dcc.Slider(
                         id='point-opacity-slider',
-                        min=0, 
+                        min=1, 
                         max=1, 
                         step=0.1,
                         value=1,
@@ -329,11 +329,11 @@ app.layout = html.Div([
         html.Div(id='selected-range-dates', style={'fontSize': '14px', 'margin': '10px 0'}),
         dcc.RangeSlider(
             id='dynamic-prediction-range-slider',
-            min=0,
+            min=1,
             max=60,
             step=1,
             marks={},
-            value=[0, 5],
+            value=[1, 5],
             tooltip={"placement": "bottom", "always_visible": True},
             allowCross=False
         )
@@ -488,7 +488,9 @@ def display_selected_dates(range_value, selected_area):
     start_val, end_val = range_value
 
     test_dates = (
-        all_data_nysa_ml[all_data_nysa_ml['timestamp'] >= TEST_START_DATE]
+        all_data_nysa_ml[
+            all_data_nysa_ml['timestamp'] >= TEST_START_DATE
+        ]
         .drop_duplicates(subset='timestamp')
         .sort_values('timestamp')
         .reset_index(drop=True)
@@ -496,14 +498,15 @@ def display_selected_dates(range_value, selected_area):
 
     date_list = test_dates['timestamp'].tolist()
 
-    start_val = min(start_val, len(date_list)-1)
-    end_val = min(end_val, len(date_list)-1)
+    date_start = date_list[start_val - 1]
+    date_end = date_list[end_val - 1]
 
-    date_start = date_list[start_val]
-    date_end = date_list[end_val]
-
-    return f"Selected date range: {date_start.strftime('%Y-%m-%d')} to {date_end.strftime('%Y-%m-%d')}"
-
+    return (
+        f"Selected date range: "
+        f"{date_start.strftime('%Y-%m-%d')} "
+        f"to "
+        f"{date_end.strftime('%Y-%m-%d')}"
+    )
 
 @app.callback(
     Output('prediction-slider-container', 'style'),
@@ -556,7 +559,19 @@ def update_slider_max(selected_area, color_mode, prediction_method):
         'nysa': all_data_nysa_ml,
     }.get(selected_area, all_data_nysa_ml)
 
-    timestamps_df = data_for_area.drop_duplicates(subset='obs_step')[['obs_step', 'timestamp']].sort_values('obs_step')
+    timestamps_df = (
+        data_for_area[
+            data_for_area['timestamp'] >= TEST_START_DATE
+        ]
+        .drop_duplicates(subset='timestamp')
+        .sort_values('timestamp')
+        .reset_index(drop=True)
+    )
+
+    timestamps_df['slider_step'] = np.arange(
+        1,
+        len(timestamps_df) + 1
+    )
 
     if max_val > 60:
         N = 40 
@@ -567,7 +582,7 @@ def update_slider_max(selected_area, color_mode, prediction_method):
 
     marks = {}
     for _, row in timestamps_df.iterrows():
-        step_val = row['obs_step']
+        step_val = row['slider_step']
         if step_val <= max_val:
             if step_val == 1 or step_val == max_val or step_val % N == 0:
                 marks[step_val] = row['timestamp'].strftime('%Y-%m-%d')  
