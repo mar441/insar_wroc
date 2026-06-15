@@ -346,33 +346,32 @@ app.layout = html.Div([
         id='displacement-container',
         children=[
             html.Div([
-                html.Label("Select Date Range", style={'font-size': '16px'}),
+                html.Label("Select Date Range", style={'fontSize': '18px', 'fontWeight': 'bold', 'marginBottom': '8px', 'display': 'block'}),
                 dcc.DatePickerRange(
                     id='date-range-picker',
                     start_date=all_data_nysa_ml['timestamp'].min(),
                     end_date=all_data_nysa_ml['timestamp'].max(),
                     display_format='YYYY-MM-DD',
                     style={
-                        'height': '5px', 'width': '300px', 'font-family': 'Arial',
-                        'font-size': '4px', 'display': 'inline-block', 'padding': '5px'
+                        'fontSize': '16px'
                     }
                 )
-            ], style={'display': 'inline-block', 'padding': '10px'}),
+            ], style={'display': 'inline-block', 'padding': '15px', 'verticalAlign': 'top'}),
             html.Div([
-                html.Label("Set Y-Axis Range (mm)"),
+                html.Label("Set Y-Axis Range (mm)", style={'fontSize': '18px', 'fontWeight': 'bold', 'marginBottom': '8px','display': 'block'}),
                 dcc.Input(
                     id='y-axis-min',
                     type='number',
                     placeholder='Min',
-                    style={'width': '20%', 'margin-right': '10px'}
+                    style={'width': '120px', 'height': '45px', 'fontSize': '16px', 'marginRight': '10px'}
                 ),
                 dcc.Input(
                     id='y-axis-max',
                     type='number',
                     placeholder='Max',
-                    style={'width': '20%'}
+                    style={'width': '120px', 'height': '45px', 'fontSize': '16px'}
                 ),
-            ], style={'display': 'inline-block', 'padding': '10px'}),
+            ], style={'display': 'inline-block', 'padding': '15px', 'verticalAlign': 'top'}),
             dcc.Graph(id='displacement-graph', style={'height': '50vh', 'width': '95vw'})
         ],
         style={'display': 'none'}
@@ -984,9 +983,9 @@ def display_displacement(clickData, start_date, end_date, y_min, y_max, selected
     displacement_data = full_data[full_data['pid'] == point_id]
     attributes = {
         'Point ID': point_id,
-        'Mean Velocity': f"{displacement_data['mean_velocity'].mean():.2f}",
-        'Minimum Displacement': f"{displacement_data['displacement'].min():.2f}",
-        'Maximum Displacement': f"{displacement_data['displacement'].max():.2f}"
+        'Mean Velocity [mm/yr]': f"{displacement_data['mean_velocity'].mean():.2f}",
+        'Minimum Displacement [mm]': f"{displacement_data['displacement'].min():.2f}",
+        'Maximum Displacement [mm]': f"{displacement_data['displacement'].max():.2f}"
     }
 
     attributes_data = [{'Name': key, 'Value': value} for key, value in attributes.items()]
