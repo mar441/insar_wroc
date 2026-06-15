@@ -13,7 +13,6 @@ import dash_bootstrap_components as dbc
 from dash import dash_table
 import plotly.graph_objects as go  
 import plotly.io as pio
-import dash_auth
 
 def load_displacement_data(file_path, file_label):
     df = pd.read_csv(file_path)
@@ -101,6 +100,26 @@ MAX_ACTUAL_NYSA = actual_nysa_ml_prefix.columns.max()
 
 TEST_START_DATE = pd.Timestamp('2021-01-01')
 
+# ---------------------------------------------------------------
+# Pełna lista dat testowych (od 01.01.2021 do 27.12.2021) — 61 kroków
+# ---------------------------------------------------------------
+TEST_DATES = pd.to_datetime([
+    '2021-01-01', '2021-01-07', '2021-01-13', '2021-01-19', '2021-01-25',
+    '2021-01-31', '2021-02-06', '2021-02-12', '2021-02-18', '2021-02-24',
+    '2021-03-02', '2021-03-08', '2021-03-14', '2021-03-20', '2021-03-26',
+    '2021-04-01', '2021-04-07', '2021-04-13', '2021-04-19', '2021-04-25',
+    '2021-05-01', '2021-05-07', '2021-05-13', '2021-05-19', '2021-05-25',
+    '2021-05-31', '2021-06-06', '2021-06-12', '2021-06-18', '2021-06-24',
+    '2021-06-30', '2021-07-06', '2021-07-12', '2021-07-18', '2021-07-24',
+    '2021-07-30', '2021-08-05', '2021-08-11', '2021-08-17', '2021-08-23',
+    '2021-08-29', '2021-09-04', '2021-09-10', '2021-09-16', '2021-09-22',
+    '2021-09-28', '2021-10-04', '2021-10-10', '2021-10-16', '2021-10-22',
+    '2021-10-28', '2021-11-03', '2021-11-09', '2021-11-15', '2021-11-21',
+    '2021-11-27', '2021-12-03', '2021-12-09', '2021-12-15', '2021-12-21',
+    '2021-12-27'
+])
+MAX_TEST_STEPS = len(TEST_DATES)  # 61
+
 orbit_geometry_info = {
     'Ascending 175': {
         'Relative orbit number': '175',
@@ -111,7 +130,7 @@ orbit_geometry_info = {
 
 px.set_mapbox_access_token("pk.eyJ1IjoibnBpZWsiLCJhIjoiY21jN2tvYXE1MTRqeTJrc2NtaTlvNXQyZSJ9.abg-EkfnNKp7bgwEvgRp0w")
 
-app = dash.Dash(__name__, suppress_callback_exceptions=True,external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, suppress_callback_exceptions=True, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server  
 app.layout = html.Div([
@@ -330,7 +349,7 @@ app.layout = html.Div([
         dcc.RangeSlider(
             id='dynamic-prediction-range-slider',
             min=1,
-            max=60,
+            max=MAX_TEST_STEPS,
             step=1,
             marks={},
             value=[1, 5],
@@ -453,7 +472,6 @@ def toggle_custom_range(range_choice):
 )
 def toggle_color_scale_visibility(selected_mode):
     continuous_modes = ['speed', 'prediction_velocity', 'actual_displacement_velocity']
-
     if selected_mode in continuous_modes:
         return {'display': 'block'}
     else:
@@ -479,6 +497,9 @@ def toggle_help_modal(n_clicks, is_open):
         return not is_open
     return is_open
 
+# ---------------------------------------------------------------
+# POPRAWIONY CALLBACK: wyświetlanie dat z listy TEST_DATES
+# ---------------------------------------------------------------
 @app.callback(
     Output('selected-range-dates', 'children'),
     Input('dynamic-prediction-range-slider', 'value'),
@@ -486,21 +507,8 @@ def toggle_help_modal(n_clicks, is_open):
 )
 def display_selected_dates(range_value, selected_area):
     start_val, end_val = range_value
-
-    test_dates = (
-        all_data_nysa_ml[
-            all_data_nysa_ml['timestamp'] >= TEST_START_DATE
-        ]
-        .drop_duplicates(subset='timestamp')
-        .sort_values('timestamp')
-        .reset_index(drop=True)
-    )
-
-    date_list = test_dates['timestamp'].tolist()
-
-    date_start = date_list[start_val - 1]
-    date_end = date_list[end_val - 1]
-
+    date_start = TEST_DATES[start_val - 1]
+    date_end = TEST_DATES[end_val - 1]
     return (
         f"Selected date range: "
         f"{date_start.strftime('%Y-%m-%d')} "
@@ -536,8 +544,11 @@ def toggle_prediction_method_dropdown(selected_area):
 )
 def update_orbit_filter(selected_area):
     if selected_area == 'nysa':
-        return [{'label': 'Ascending 175', 'value': 'Ascending 175'}], 'Ascending 22', True
+        return [{'label': 'Ascending 175', 'value': 'Ascending 175'}], 'Ascending 175', True
 
+# ---------------------------------------------------------------
+# POPRAWIONY CALLBACK: slider oparty na TEST_DATES (61 kroków)
+# ---------------------------------------------------------------
 @app.callback(
     [Output('dynamic-prediction-range-slider', 'max'),
      Output('dynamic-prediction-range-slider', 'marks'),
@@ -547,47 +558,17 @@ def update_orbit_filter(selected_area):
      Input('prediction-method-dropdown', 'value')]
 )
 def update_slider_max(selected_area, color_mode, prediction_method):
+    max_val = MAX_TEST_STEPS  # zawsze 61 kroków testowych
 
-    if color_mode == 'actual_displacement_velocity':
-        max_val = {
-            'nysa': MAX_ACTUAL_NYSA,
-        }.get(selected_area, MAX_ACTUAL_NYSA)
-    else:
-        max_val = 60  
-        
-    data_for_area = {
-        'nysa': all_data_nysa_ml,
-    }.get(selected_area, all_data_nysa_ml)
-
-    timestamps_df = (
-        data_for_area[
-            data_for_area['timestamp'] >= TEST_START_DATE
-        ]
-        .drop_duplicates(subset='timestamp')
-        .sort_values('timestamp')
-        .reset_index(drop=True)
-    )
-
-    timestamps_df['slider_step'] = np.arange(
-        1,
-        len(timestamps_df) + 1
-    )
-
-    if max_val > 60:
-        N = 40 
-    elif max_val > 20:
-        N = 15  
-    else:
-        N = 5  
-
+    # Etykiety co 5 kroków + pierwszy i ostatni
+    N = 5
     marks = {}
-    for _, row in timestamps_df.iterrows():
-        step_val = row['slider_step']
-        if step_val <= max_val:
-            if step_val == 1 or step_val == max_val or step_val % N == 0:
-                marks[step_val] = row['timestamp'].strftime('%Y-%m-%d')  
-            else:
-                marks[step_val] = "" 
+    for i, date in enumerate(TEST_DATES):
+        step_val = i + 1
+        if step_val == 1 or step_val == max_val or step_val % N == 0:
+            marks[step_val] = date.strftime('%Y-%m-%d')
+        else:
+            marks[step_val] = ""
 
     default_end = min(5, max_val)
     return max_val, marks, [1, default_end]
@@ -609,8 +590,8 @@ def update_slider_max(selected_area, color_mode, prediction_method):
         Input('custom-max-input', 'value')      
     ]
 )
-def update_map(map_style,color_mode,orbit_filter,selected_area,pred_range,prediction_method,point_opacity,point_size,
-               color_scale_selected,range_choice,custom_min,custom_max):
+def update_map(map_style, color_mode, orbit_filter, selected_area, pred_range, prediction_method,
+               point_opacity, point_size, color_scale_selected, range_choice, custom_min, custom_max):
     if selected_area == 'nysa':
         data = all_data_nysa_ml.drop_duplicates(subset=['pid'])
         center_coords = {'lat': data['latitude'].mean(), 'lon': data['longitude'].mean()}
@@ -624,8 +605,6 @@ def update_map(map_style,color_mode,orbit_filter,selected_area,pred_range,predic
     filtered_data['mean_velocity'] = filtered_data['mean_velocity'].round(1)
 
     start_val, end_val = pred_range
-
-    continuous_modes = ['speed', 'prediction_velocity', 'actual_displacement_velocity']
 
     if color_mode == 'prediction_velocity':
         if selected_area == 'nysa':
